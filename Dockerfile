@@ -13,9 +13,5 @@ RUN mkdir /app/src
 WORKDIR /app
 COPY ./src ./src
 
-FROM base AS api
-CMD gunicorn -k uvicorn.workers.UvicornWorker --chdir ./src app:app --bind 0.0.0.0:5051
-
-FROM base AS extract_pdf_paragraphs
 CMD python3 src/QueueProcessor.py
 

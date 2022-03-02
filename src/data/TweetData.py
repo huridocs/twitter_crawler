@@ -1,17 +1,19 @@
 from typing import List
+
+from pydantic import BaseModel
 from tweepy import Response
 
-from Attachment import Attachment
-from User import User
+from data.Attachment import Attachment
+from data.User import User
+from datetime import datetime
 
 
-class TweetData:
-    def __init__(self, text: str, user: User, url: str, created_at, attachments: List[Attachment]):
-        self.attachments = attachments
-        self.created_at = created_at
-        self.text = text
-        self.user = user
-        self.url = url
+class TweetData(BaseModel):
+    created_at: int
+    user: User
+    text: str
+    attachments: List[Attachment]
+    url: str
 
     @staticmethod
     def from_tweets_list(response: Response) -> List["TweetData"]:
@@ -24,7 +26,7 @@ class TweetData:
                     text=tweet.text,
                     user=user,
                     url=f"https://twitter.com/{user.user_alias}/statuses/{tweet.id}",
-                    created_at=tweet.created_at,
+                    created_at=datetime.timestamp(tweet.created_at),
                     attachments=attachments,
                 )
             )

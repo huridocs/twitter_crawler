@@ -1,6 +1,7 @@
 from typing import List
 
 import tweepy
+from pydantic import BaseModel
 from tweepy import Response
 
 from ServiceConfig import ServiceConfig
@@ -8,11 +9,10 @@ from ServiceConfig import ServiceConfig
 SERVICE_CONFIG = ServiceConfig()
 
 
-class Attachment:
-    def __init__(self, attachment_type: str, text: str, url: str):
-        self.attachment_type = attachment_type
-        self.text = text
-        self.url = url
+class Attachment(BaseModel):
+    attachment_type: str
+    url: str
+    text: str
 
     @staticmethod
     def from_response(response: Response, data) -> List["Attachment"]:
@@ -32,7 +32,8 @@ class Attachment:
                 url = media.url if media.url else media.preview_image_url
                 if media.type == "video":
                     url = f"https://twitter.com/user/statuses/{data['id']}/video/1"
-                attachments.append(Attachment(media.type, media.alt_text, url))
+                attachment_text = media.alt_text if media.alt_text else ""
+                attachments.append(Attachment(attachment_type=media.type, text=attachment_text, url=url))
 
         if "referenced_tweets" not in data:
             return attachments
@@ -41,11 +42,12 @@ class Attachment:
 
         for referenced_tweet in data["referenced_tweets"]:
             referenced_tweet_response = client.get_tweet(id=referenced_tweet["id"])
+            attachment_text = referenced_tweet_response.data.text if referenced_tweet_response.data.text else ""
             attachments.append(
                 Attachment(
-                    referenced_tweet["type"],
-                    referenced_tweet_response.data.text,
-                    f"https://twitter.com/user/statuses/{referenced_tweet_response.data.id}",
+                    attachment_type=referenced_tweet["type"],
+                    text=attachment_text,
+                    url=f"https://twitter.com/user/statuses/{referenced_tweet_response.data.id}",
                 )
             )
 

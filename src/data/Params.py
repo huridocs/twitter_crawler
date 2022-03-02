@@ -2,4 +2,5 @@ from pydantic import BaseModel
 
 
 class Params(BaseModel):
-    filename: str
+    search: str
+    fromUTCTimestamp: int

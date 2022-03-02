@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from data.TweetData import TweetData
 
 
-class TwitterMessage(BaseModel):
+class TweetMessage(BaseModel):
     tenant: str
     task: str
     params: TweetData
