@@ -1,0 +1,42 @@
+version: '3'
+services:
+  api:
+    init: true
+    network_mode: host
+    restart: unless-stopped
+    user: "${USER_ID}:${GROUP_ID}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    volumes:
+      - ./docker_volume:/app/docker_volume
+    depends_on:
+      - mongo_paragraphs
+  extract_pdf_paragraphs:
+    init: true
+    network_mode: host
+    restart: unless-stopped
+    user: "${USER_ID}:${GROUP_ID}"
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: extract_pdf_paragraphs
+    volumes:
+      - ./docker_volume:/app/docker_volume
+    depends_on:
+      - mongo_paragraphs
+  mongo_paragraphs:
+    network_mode: host
+    restart: unless-stopped
+    command: mongod --port 28017
+    image: "mongo:4.0.1"
+  redis_paragraphs:
+    network_mode: host
+    restart: unless-stopped
+    image: "redis:5.0.14"
+    command: redis-server
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    profiles:
+      - testing

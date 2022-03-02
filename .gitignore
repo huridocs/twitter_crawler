@@ -17,3 +17,4 @@ db/*
 service.log
 **/*.pytest_cache
 src/.pytest_cache
+/.twitter_keys.yaml
