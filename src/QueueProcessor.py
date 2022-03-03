@@ -40,9 +40,9 @@ class QueueProcessor:
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
-                task.params.search,
+                task.params.query,
                 max_results=10,
-                start_time=timestamp_to_recent_utc(task.params.fromUTCTimestamp),
+                start_time=timestamp_to_recent_utc(task.params.from_UTC_timestamp),
                 tweet_fields=["created_at", "referenced_tweets", "entities"],
                 media_fields=["url", "alt_text", "preview_image_url"],
                 expansions=["attachments.media_keys", "author_id"],
@@ -52,7 +52,7 @@ class QueueProcessor:
             for tweet_data in tweets_data:
                 tweet_message = TweetMessage(tenant=task.tenant, task=task.task, params=tweet_data, success=True)
                 self.results_queue.sendMessage(delay=3).message(tweet_message.dict()).execute()
-
+                self.logger.info(f"output message: {tweet_message}")
             return True
 
         except Exception:

@@ -2,5 +2,5 @@ from pydantic import BaseModel
 
 
 class Params(BaseModel):
-    search: str
-    fromUTCTimestamp: int
+    query: str
+    from_UTC_timestamp: int
