@@ -32,7 +32,7 @@ class Attachment(BaseModel):
                 url = media.url if media.url else media.preview_image_url
                 if media.type == "video":
                     url = f"https://twitter.com/user/statuses/{data['id']}/video/1"
-                attachment_text = media.alt_text if media.alt_text else ""
+                attachment_text = media.alt_text if media.alt_text else "media"
                 attachments.append(Attachment(attachment_type=media.type, text=attachment_text, url=url))
 
         if "referenced_tweets" not in data:
@@ -42,7 +42,7 @@ class Attachment(BaseModel):
 
         for referenced_tweet in data["referenced_tweets"]:
             referenced_tweet_response = client.get_tweet(id=referenced_tweet["id"])
-            attachment_text = referenced_tweet_response.data.text if referenced_tweet_response.data.text else ""
+            attachment_text = referenced_tweet_response.data.text if referenced_tweet_response.data.text else "media"
             attachments.append(
                 Attachment(
                     attachment_type=referenced_tweet["type"],
