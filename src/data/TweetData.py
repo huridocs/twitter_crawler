@@ -33,7 +33,7 @@ def get_text(text: str, attachments: List[Attachment]):
         for start in start_character_matches:
             try:
                 next_character = text[start + len(link)]
-                if next_character == " ":
+                if next_character == " " or next_character == "\t" or next_character == "\n":
                     text = text[:start] + f"[{link}]({link})" + text[start + len(link) :]
             except IndexError:
                 text = text[:start] + f"[{link}]({link})"

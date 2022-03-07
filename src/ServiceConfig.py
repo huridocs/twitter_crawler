@@ -8,7 +8,6 @@ import yaml
 
 OPTIONS = ["redis_host", "redis_port", "graylog_ip", "twitter_bearer_token"]
 SERVICE_NAME = "twitter_crawler"
-
 APP_PATH = Path(__file__).parent.absolute()
 
 

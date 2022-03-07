@@ -28,7 +28,11 @@ class TestEndToEnd(TestCase):
         no_search_term_task = Task(
             tenant=tenant,
             task="get-hashtag",
-            params=Params(query="2323423424-42a0bc68-75ca-4b25-82ed-50794d32ba20", from_UTC_timestamp=1645657200),
+            params=Params(
+                query="2323423424-42a0bc68-75ca-4b25-82ed-50794d32ba20",
+                from_UTC_timestamp=1645657200,
+                tweets_languages=["en"],
+            ),
         )
 
         queue.sendMessage().message(str(no_search_term_task.json())).execute()
@@ -36,7 +40,7 @@ class TestEndToEnd(TestCase):
         task = Task(
             tenant=tenant,
             task="get-hashtag",
-            params=Params(query="#twitter", from_UTC_timestamp=1645657200),
+            params=Params(query="#twitter", from_UTC_timestamp=1645657200, tweets_languages=["en"]),
         )
 
         queue.sendMessage().message(str(task.json())).execute()
