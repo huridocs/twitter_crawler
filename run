@@ -52,7 +52,7 @@ function remove_docker_images {
 }
 
 function start {
-  docker-compose up --build "${@}"
+  docker-compose --profile production up --build "${@}"
 }
 
 function start:testing {

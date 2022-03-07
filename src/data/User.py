@@ -15,6 +15,6 @@ class User(BaseModel):
             author_id=author_id,
             name=users[author_id].name,
             alias=users[author_id].username,
-            display_name=" ".join([users[author_id].name, users[author_id].username]),
-            url=f'https://twitter.com/{users[author_id].username}',
+            display_name=" ".join([users[author_id].name, f"@{users[author_id].username}"]),
+            url=f"https://twitter.com/{users[author_id].username}",
         )

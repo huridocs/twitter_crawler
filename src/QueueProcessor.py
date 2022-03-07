@@ -1,4 +1,3 @@
-from datetime import datetime
 from time import sleep
 from typing import List
 
@@ -7,7 +6,6 @@ import tweepy
 from pydantic import ValidationError
 from rsmq.consumer import RedisSMQConsumer
 from rsmq import RedisSMQ
-from tweepy import client
 
 from ServiceConfig import ServiceConfig
 from data.Task import Task
@@ -40,9 +38,9 @@ class QueueProcessor:
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
-                task.params.query,
+                f"{task.params.query} -is:reply -is:retweet",
                 max_results=10,
-                start_time=timestamp_to_recent_utc(task.params.from_UTC_timestamp),
+                start_time=timestamp_to_recent_utc(task.params.from_UTC_timestamp + 1),
                 tweet_fields=["created_at", "referenced_tweets", "entities"],
                 media_fields=["url", "alt_text", "preview_image_url"],
                 expansions=["attachments.media_keys", "author_id"],
@@ -53,6 +51,9 @@ class QueueProcessor:
                 tweet_message = TweetMessage(tenant=task.tenant, task=task.task, params=tweet_data, success=True)
                 self.results_queue.sendMessage(delay=3).message(tweet_message.dict()).execute()
                 self.logger.info(f"output message: {tweet_message}")
+                sleep(1)
+
+            sleep(5)
             return True
 
         except Exception:

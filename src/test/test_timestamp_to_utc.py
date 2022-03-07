@@ -9,7 +9,7 @@ class TestTimestampToRecentUtc(TestCase):
         now = datetime.now()
         utc_time = timestamp_to_recent_utc(int(now.timestamp()))
 
-        self.assertEqual(utc_time[-5:], '00:00')
+        self.assertEqual(utc_time[-5:], "00:00")
         self.assertEqual(int(utc_time[:4]), now.year)
         self.assertEqual(int(utc_time[5:7]), now.month)
         self.assertEqual(int(utc_time[8:10]), now.day)

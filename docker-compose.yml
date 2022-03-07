@@ -1,4 +1,4 @@
-version: '3'
+version: '3.9'
 services:
   twitter_extractor:
     init: true
@@ -10,6 +10,9 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./docker_volume:/app/docker_volume
+    profiles:
+      - production
+      - testing
   redis_twitter:
     network_mode: host
     restart: unless-stopped
