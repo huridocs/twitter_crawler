@@ -49,7 +49,7 @@ class QueueProcessor:
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
                 f"{task.params.query} -is:reply -is:retweet",
-                max_results=2,
+                max_results=10,
                 start_time=start_time,
                 end_time=end_time,
                 tweet_fields=["created_at", "referenced_tweets", "entities"],
