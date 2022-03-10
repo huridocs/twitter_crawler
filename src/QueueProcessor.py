@@ -44,7 +44,7 @@ class QueueProcessor:
 
             shifted_seconds = 120
             window_seconds = 120
-            start_time = timestamp_to_recent_utc(ts/1000 - window_seconds - shifted_seconds + 1)
+            start_time = timestamp_to_recent_utc(ts/1000 - window_seconds - shifted_seconds)
             end_time = timestamp_to_recent_utc(ts/1000 - shifted_seconds)
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
