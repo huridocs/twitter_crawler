@@ -34,12 +34,14 @@ class QueueProcessor:
             return True
 
         self.logger.info(f"Valid message: {message}")
+        self.logger.info(f"TS: {ts}")
 
         try:
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
             time_threshold = datetime.utcnow().timestamp() - 1800
+            message_time_threshold = datetime.utcnow().timestamp() - 900
 
-            if time_threshold < task.params.from_UTC_timestamp + 1:
+            if time_threshold < task.params.from_UTC_timestamp + 1 or ts/1000 < message_time_threshold:
                 return True
 
             start_time = timestamp_to_recent_utc(task.params.from_UTC_timestamp + 1)
