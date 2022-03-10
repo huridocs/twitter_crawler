@@ -46,7 +46,7 @@ class TweetData(BaseModel):
                     source=f"https://twitter.com/{user.alias}/statuses/{data.id}",
                     created_at=datetime.timestamp(data.created_at),
                     images_urls=[x.url for x in attachments if x.attachment_type == "photo"],
-                    hashtags=get_hashtags(data.text).union(query) if query else get_hashtags(data.text)
+                    hashtags=get_hashtags(data.text).union({query}) if query else get_hashtags(data.text)
                 )
             )
 
