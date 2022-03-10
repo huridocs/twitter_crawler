@@ -38,15 +38,20 @@ class TweetData(BaseModel):
             else:
                 expanded_urls = {}
 
+            quoted_tweets = [TweetData.from_id(x.url) for x in attachments if x.attachment_type == "quoted"]
+            quoted_images_urls = []
+            for quoted_tweet in quoted_tweets:
+                quoted_images_urls += quoted_tweet.images_urls
+
             tweets_data.append(
                 TweetData(
                     title=f"{user.display_name} [{data.created_at:%Y-%m-%d %H:%M:%S}]",
-                    text=get_text(data.text, attachments, expanded_urls),
+                    text=get_text(data.text, attachments, expanded_urls, quoted_tweets),
                     user=user,
                     source=f"https://twitter.com/{user.alias}/statuses/{data.id}",
                     created_at=datetime.timestamp(data.created_at),
-                    images_urls=[x.url for x in attachments if x.attachment_type == "photo"],
-                    hashtags=get_hashtags(data.text).union({query}) if query else get_hashtags(data.text)
+                    images_urls=set([x.url for x in attachments if x.attachment_type == "photo"] + quoted_images_urls),
+                    hashtags=get_hashtags(data.text).union({query}) if query else get_hashtags(data.text),
                 )
             )
 
@@ -61,10 +66,13 @@ class TweetData(BaseModel):
             media_fields=["url", "alt_text", "preview_image_url"],
             expansions=["attachments.media_keys", "author_id"],
         )
-        return TweetData.from_tweets_list(response, '', False)[0]
+        return TweetData.from_tweets_list(response, "", False)[0]
 
 
-def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, str]):
+def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, str], quoted_tweets=None):
+    if quoted_tweets is None:
+        quoted_tweets = list()
+
     for url, expanded_url in expanded_urls.items():
         text = text.replace(url, expanded_url)
 
@@ -75,9 +83,8 @@ def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, 
     text = replace_links(links, text)
     text = text + "\n\n".join([f"![{x.text}]({x.url})" for x in attachments if x.attachment_type == "photo"])
 
-    tweet_data_references = [TweetData.from_id(x.url) for x in attachments if x.attachment_type == "quoted"]
-    for tweet_data_reference in tweet_data_references:
-        text = text + "\n\nQuoted tweet:\n\n" + tweet_data_reference.title + "\n\n" + tweet_data_reference.text
+    for quoted_tweet in quoted_tweets:
+        text = text + "\n\nQuoted tweet:\n\n" + quoted_tweet.title + "\n\n" + quoted_tweet.text
     return text
 
 
