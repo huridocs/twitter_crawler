@@ -33,7 +33,11 @@ class TweetData(BaseModel):
         for data in response.data:
             user = User.from_response(response, data.author_id)
             attachments = Attachment.from_response(response, data.data, tweet_quotes)
-            expanded_urls = {x["url"]: x["expanded_url"] for x in data.entities["urls"]} if "urls" in data.entities else {}
+            if "urls" in data.entities and data.entities["urls"] and len(data.entities["urls"]):
+                expanded_urls = {x["url"]: x["expanded_url"] for x in data.entities["urls"]}
+            else:
+                expanded_urls = {}
+
             tweets_data.append(
                 TweetData(
                     title=f"{user.display_name} [{data.created_at:%Y-%m-%d %H:%M:%S}]",

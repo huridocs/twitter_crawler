@@ -34,22 +34,24 @@ class QueueProcessor:
             return True
 
         self.logger.info(f"Valid message: {message}")
-        self.logger.info(f"TS: {ts}")
 
         try:
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
-            time_threshold = datetime.utcnow().timestamp() - 1800
-            message_time_threshold = datetime.utcnow().timestamp() - 900
+            message_time_threshold = datetime.utcnow().timestamp() - 300
 
-            if time_threshold < task.params.from_UTC_timestamp + 1 or ts/1000 < message_time_threshold:
+            if ts/1000 < message_time_threshold:
                 return True
 
-            start_time = timestamp_to_recent_utc(task.params.from_UTC_timestamp + 1)
+            shifted_seconds = 120
+            window_seconds = 120
+            start_time = timestamp_to_recent_utc(ts/1000 - window_seconds - shifted_seconds + 1)
+            end_time = timestamp_to_recent_utc(ts/1000 - shifted_seconds)
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
                 f"{task.params.query} -is:reply -is:retweet",
-                max_results=20,
+                max_results=2,
                 start_time=start_time,
+                end_time=end_time,
                 tweet_fields=["created_at", "referenced_tweets", "entities"],
                 media_fields=["url", "alt_text", "preview_image_url"],
                 expansions=["attachments.media_keys", "author_id"],
