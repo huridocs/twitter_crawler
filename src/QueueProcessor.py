@@ -37,26 +37,24 @@ class QueueProcessor:
 
         try:
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
-            last_hour = datetime.utcnow().timestamp() - 3600
+            time_threshold = datetime.utcnow().timestamp() - 1800
 
-            # if last_hour < task.params.from_UTC_timestamp + 1:
-            #     return True
-
-            self.logger.info(f"requesting")
+            if time_threshold < task.params.from_UTC_timestamp + 1:
+                return True
 
             start_time = timestamp_to_recent_utc(task.params.from_UTC_timestamp + 1)
 
             tweets_from_ids = tweepy_client.search_recent_tweets(
                 f"{task.params.query} -is:reply -is:retweet",
-                max_results=10,
+                max_results=20,
                 start_time=start_time,
                 tweet_fields=["created_at", "referenced_tweets", "entities"],
                 media_fields=["url", "alt_text", "preview_image_url"],
                 expansions=["attachments.media_keys", "author_id"],
             )
 
-            tweets_data: List[TweetData] = TweetData.from_tweets_list(tweets_from_ids)
-            self.logger.info(f"output messages: {len(tweets_data)}")
+            tweets_data: List[TweetData] = TweetData.from_tweets_list(tweets_from_ids, task.params.query)
+            self.logger.info(f"output messages for {task.params.query}: {len(tweets_data)}")
 
             for tweet_data in tweets_data:
                 tweet_message = TweetMessage(tenant=task.tenant, task=task.task, params=tweet_data, success=True)

@@ -11,6 +11,54 @@ from datetime import datetime
 
 import re
 
+SERVICE_CONFIG = ServiceConfig()
+
+
+class TweetData(BaseModel):
+    created_at: int
+    user: User
+    text: str
+    images_urls: List[str]
+    source: str
+    hashtags: List[str]
+    title: str
+
+    @staticmethod
+    def from_tweets_list(response: Response, query: str, tweet_quotes=True) -> List["TweetData"]:
+        if not response.data:
+            return []
+
+        tweets_data = list()
+
+        for data in response.data:
+            user = User.from_response(response, data.author_id)
+            attachments = Attachment.from_response(response, data.data, tweet_quotes)
+            expanded_urls = {x["url"]: x["expanded_url"] for x in data.entities["urls"]} if "urls" in data.entities else {}
+            tweets_data.append(
+                TweetData(
+                    title=f"{user.display_name} [{data.created_at:%Y-%m-%d %H:%M:%S}]",
+                    text=get_text(data.text, attachments, expanded_urls),
+                    user=user,
+                    source=f"https://twitter.com/{user.alias}/statuses/{data.id}",
+                    created_at=datetime.timestamp(data.created_at),
+                    images_urls=[x.url for x in attachments if x.attachment_type == "photo"],
+                    hashtags=get_hashtags(data.text).union(query) if query else get_hashtags(data.text)
+                )
+            )
+
+        return tweets_data
+
+    @staticmethod
+    def from_id(tweet_id: str) -> "TweetData":
+        client = tweepy.Client(SERVICE_CONFIG.twitter_bearer_token)
+        response = client.get_tweets(
+            ids=[tweet_id],
+            tweet_fields=["created_at", "referenced_tweets", "entities"],
+            media_fields=["url", "alt_text", "preview_image_url"],
+            expansions=["attachments.media_keys", "author_id"],
+        )
+        return TweetData.from_tweets_list(response, '', False)[0]
+
 
 def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, str]):
     for url, expanded_url in expanded_urls.items():
@@ -65,52 +113,3 @@ def get_hashtags(text: str) -> Set[str]:
 
 def get_links(text: str) -> Set[str]:
     return set([t for t in text.split() if t.startswith("https://")])
-
-
-SERVICE_CONFIG = ServiceConfig()
-
-
-class TweetData(BaseModel):
-    created_at: int
-    user: User
-    text: str
-    images_urls: List[str]
-    source: str
-    hashtags: List[str]
-    title: str
-
-    @staticmethod
-    def from_tweets_list(response: Response, tweet_quotes=True) -> List["TweetData"]:
-        if not response.data:
-            return []
-
-        tweets_data = list()
-
-        for data in response.data:
-            user = User.from_response(response, data.author_id)
-            attachments = Attachment.from_response(response, data.data, tweet_quotes)
-            expanded_urls = {x["url"]: x["expanded_url"] for x in data.entities["urls"]} if "urls" in data.entities else {}
-            tweets_data.append(
-                TweetData(
-                    title=f"{user.display_name} [{data.created_at:%Y-%m-%d %H:%M:%S}]",
-                    text=get_text(data.text, attachments, expanded_urls),
-                    user=user,
-                    source=f"https://twitter.com/{user.alias}/statuses/{data.id}",
-                    created_at=datetime.timestamp(data.created_at),
-                    images_urls=[x.url for x in attachments if x.attachment_type == "photo"],
-                    hashtags=get_hashtags(data.text),
-                )
-            )
-
-        return tweets_data
-
-    @staticmethod
-    def from_id(tweet_id: str) -> "TweetData":
-        client = tweepy.Client(SERVICE_CONFIG.twitter_bearer_token)
-        response = client.get_tweets(
-            ids=[tweet_id],
-            tweet_fields=["created_at", "referenced_tweets", "entities"],
-            media_fields=["url", "alt_text", "preview_image_url"],
-            expansions=["attachments.media_keys", "author_id"],
-        )
-        return TweetData.from_tweets_list(response, False)[0]
