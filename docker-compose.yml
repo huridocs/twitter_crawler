@@ -18,7 +18,7 @@ services:
     volumes:
       - ./docker_volume:/app/docker_volume
     profiles: ['production', 'testing']
-  mongo_test:
+  mongo_twitter:
     network_mode: host
     restart: unless-stopped
     command: mongod --port 30017
