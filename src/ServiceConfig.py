@@ -24,6 +24,9 @@ class ServiceConfig:
         self.config_path = "src/config.yml"
         self.read_configuration_from_yml()
 
+        self.mongo_host = self.get_parameter_from_yml("mongo_host", "127.0.0.1")
+        self.mongo_port = self.get_parameter_from_yml("mongo_port", 30017)
+
         self.redis_host = self.get_parameter_from_yml("redis_host", "127.0.0.1")
         self.redis_port = self.get_parameter_from_yml("redis_port", 6379)
 

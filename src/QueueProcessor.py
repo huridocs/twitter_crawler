@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from time import sleep
 from typing import List
 
+import pymongo as pymongo
 import redis
 import tweepy
 from pydantic import ValidationError
@@ -12,13 +13,17 @@ from ServiceConfig import ServiceConfig
 from data.Task import Task
 from data.TweetData import TweetData
 from data.TweetMessage import TweetMessage
-from timestamp_to_recent_utc import timestamp_to_recent_utc
 
 
 class QueueProcessor:
+
+    TIME_BETWEEN_QUERIES_IN_MINUTES = 4
+
     def __init__(self):
         self.service_config = ServiceConfig()
         self.logger = self.service_config.get_logger("redis_tasks")
+        client = pymongo.MongoClient(f"mongodb://{self.service_config.mongo_host}:{self.service_config.mongo_port}")
+        self.tweets_db = client["tweets"]
 
         self.results_queue = RedisSMQ(
             host=self.service_config.redis_host,
@@ -29,35 +34,15 @@ class QueueProcessor:
     def process(self, id, message, rc, ts):
         try:
             task = Task(**message)
-        except ValidationError:
-            self.logger.error(f"Not a valid message: {message}")
-            return True
 
-        self.logger.info(f"Valid message: {message}")
-
-        try:
-            tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
-            message_time_threshold = datetime.utcnow().timestamp() - 300
-
-            if ts/1000 < message_time_threshold:
+            if self.last_query_was_too_recent(task):
+                self.logger.info(f"Skipped message: {message}")
                 return True
 
-            shifted_seconds = 120
-            window_seconds = 120
-            start_time = timestamp_to_recent_utc(ts/1000 - window_seconds - shifted_seconds)
-            end_time = timestamp_to_recent_utc(ts/1000 - shifted_seconds)
+            self.logger.info(f"Valid message: {message}")
 
-            tweets_from_ids = tweepy_client.search_recent_tweets(
-                f"{task.params.query} -is:reply -is:retweet",
-                max_results=10,
-                start_time=start_time,
-                end_time=end_time,
-                tweet_fields=["created_at", "referenced_tweets", "entities"],
-                media_fields=["url", "alt_text", "preview_image_url"],
-                expansions=["attachments.media_keys", "author_id"],
-            )
+            tweets_data: List[TweetData] = self.get_tweets(task)
 
-            tweets_data: List[TweetData] = TweetData.from_tweets_list(tweets_from_ids, task.params.query)
             self.logger.info(f"output messages for {task.params.query}: {len(tweets_data)}")
 
             for tweet_data in tweets_data:
@@ -65,12 +50,80 @@ class QueueProcessor:
                 self.results_queue.sendMessage(delay=3).message(tweet_message.dict()).execute()
                 sleep(1)
 
-            sleep(5)
-            return True
-
+        except ValidationError:
+            self.logger.error(f"Not a valid message: {message}")
+        except ConnectionError:
+            self.logger.info(f"ConnectionError: {message}")
+        except tweepy.errors.BadRequest:
+            self.logger.info(f"Not a valid user: {message}")
+        except tweepy.errors.HTTPException:
+            self.logger.info(f"Twitter api not available: {message}")
         except Exception:
             self.logger.error("error getting the tweets", exc_info=1)
-            return True
+
+        return True
+
+    def get_tweets(self, task: Task):
+        tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
+        tweepy_params = self.get_tweepy_query_params(task)
+
+        if task.params.query[0] == "@":
+            tweepy_tweets = tweepy_client.get_users_tweets(**tweepy_params)
+        else:
+            tweepy_tweets = tweepy_client.search_recent_tweets(**tweepy_params)
+
+        tweets_data = TweetData.from_tweets_list(tweepy_tweets, self.get_sanitized_query(task.params.query))
+
+        self.save_tweet_query_in_db(task, tweets_data)
+
+        return tweets_data
+
+    def get_tweepy_query_params(self, task):
+        tweepy_params = {
+            "max_results": 10,
+            "tweet_fields": ["created_at", "referenced_tweets", "entities"],
+            "media_fields": ["url", "alt_text", "preview_image_url"],
+            "expansions": ["attachments.media_keys", "author_id"],
+        }
+
+        tweet_data = self.tweets_db.tweets.find_one({"tenant": task.tenant, "query": task.params.query})
+        if tweet_data:
+            tweepy_params["since_id"] = tweet_data["last_id_inserted"]
+
+        if task.params.query[0] == "@":
+            tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
+            user = tweepy_client.get_user(username=task.params.query[1:])
+            tweepy_params["id"] = user.data["id"]
+        else:
+            tweepy_params["query"] = f"{self.get_sanitized_query(task.params.query)} -is:reply -is:retweet"
+
+        return tweepy_params
+
+    def last_query_was_too_recent(self, task: Task):
+        tweet_data = self.tweets_db.tweets.find_one({"tenant": task.tenant, "query": task.params.query})
+
+        if not tweet_data:
+            return False
+
+        timestamp_now = int(datetime.now(tz=timezone.utc).timestamp())
+        last_query_timestamp = tweet_data["last_query_timestamp"]
+
+        return timestamp_now - QueueProcessor.TIME_BETWEEN_QUERIES_IN_MINUTES * 60 < last_query_timestamp
+
+    def save_tweet_query_in_db(self, task, tweets_data):
+        if not len(tweets_data):
+            return
+
+        last_id_inserted = max([x.tweet_id for x in tweets_data])
+        self.tweets_db.tweets.delete_many({"tenant": task.tenant, "query": task.params.query})
+        self.tweets_db.tweets.insert_one(
+            {
+                "tenant": task.tenant,
+                "query": task.params.query,
+                "last_query_timestamp": int(datetime.now(tz=timezone.utc).timestamp()),
+                "last_id_inserted": last_id_inserted,
+            }
+        )
 
     def subscribe_to_extractions_tasks_queue(self):
         while True:
@@ -98,6 +151,13 @@ class QueueProcessor:
                     f"Error connecting to redis: {self.service_config.redis_host}:{self.service_config.redis_port}"
                 )
                 sleep(20)
+
+    @staticmethod
+    def get_sanitized_query(query):
+        if "search#" == query[:7]:
+            return query[7:]
+
+        return query
 
 
 if __name__ == "__main__":

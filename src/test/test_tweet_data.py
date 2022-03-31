@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from data.TweetData import get_hashtags, get_links, get_text
+from data.TweetData import get_hashtags, get_links, get_text, get_users
 
 
 class TestTweetData(TestCase):
@@ -24,6 +24,14 @@ class TestTweetData(TestCase):
             {"https://t.co/DuDcVHK3qp"},
             get_links("Zeya Tun was. #2022Mar4Coup #WhatsHappeningInMyanmar https://t.co/DuDcVHK3qp"),
         )
+
+    def test_user_regex(self):
+        self.assertEqual(set(), get_users("no users"))
+        self.assertEqual({"@a"}, get_users("blah @a or @a"))
+        self.assertEqual({"@a"}, get_users("blah @a.or"))
+        self.assertEqual({"@bc"}, get_users("blah @bc:or"))
+        self.assertEqual({"@bc"}, get_users("blah @bc;or"))
+        self.assertEqual({"@bc", "@e"}, get_users("blah @bc;@e\nt"))
 
     def test_get_text(self):
         self.assertEqual("text", get_text("text", [], {}))
@@ -60,10 +68,13 @@ class TestTweetData(TestCase):
             "[https://123.is](https://123.is) [https://123.is/1](https://123.is/1)",
             get_text("https://123.is https://123.is/1", [], {}),
         )
+        self.assertEqual(
+            "blah [@a](https://twitter.com/a) [@bc](https://twitter.com/bc).blah",
+            get_text("blah @a @bc.blah", [], {}),
+        )
 
     def test_get_text_extended_urls(self):
         self.assertEqual(
             "[https://123.is](https://123.is) text",
-            get_text("https://test.is text", [], {'https://test.is': 'https://123.is'}),
+            get_text("https://test.is text", [], {"https://test.is": "https://123.is"}),
         )
-

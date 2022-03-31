@@ -9,3 +9,4 @@ redis~=3.5.3
 pytest
 black
 tweepy~=4.5.0
+pymongo~=4.0.2

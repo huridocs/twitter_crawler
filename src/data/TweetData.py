@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Set
 
 import tweepy
 from pydantic import BaseModel
@@ -22,6 +22,7 @@ class TweetData(BaseModel):
     source: str
     hashtags: List[str]
     title: str
+    tweet_id: int
 
     @staticmethod
     def from_tweets_list(response: Response, query: str, tweet_quotes=True) -> List["TweetData"]:
@@ -52,9 +53,11 @@ class TweetData(BaseModel):
                     created_at=datetime.timestamp(data.created_at),
                     images_urls=set([x.url for x in attachments if x.attachment_type == "photo"] + quoted_images_urls),
                     hashtags=get_hashtags(data.text).union({query}) if query else get_hashtags(data.text),
+                    tweet_id=data.id,
                 )
             )
 
+        tweets_data.sort(key=lambda x: x.tweet_id)
         return tweets_data
 
     @staticmethod
@@ -78,9 +81,11 @@ def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, 
 
     hashtags = get_hashtags(text)
     links = get_links(text)
+    users = get_users(text)
 
     text = replace_hashtags(hashtags, text)
     text = replace_links(links, text)
+    text = replace_users(users, text)
     text = text + "\n\n".join([f"![{x.text}]({x.url})" for x in attachments if x.attachment_type == "photo"])
 
     for quoted_tweet in quoted_tweets:
@@ -118,8 +123,25 @@ def replace_hashtags(hashtags: Set[str], text: str):
     return text
 
 
+def replace_users(users: Set[str], text: str):
+    for user in users:
+        start_character_matches = sorted([m.start() for m in re.finditer(user, text)], reverse=True)
+        for start in start_character_matches:
+            try:
+                next_character = text[start + len(user)]
+                if not next_character.isalnum():
+                    text = text[:start] + f"[{user}](https://twitter.com/{user[1:]})" + text[start + len(user) :]
+            except IndexError:
+                text = text[:start] + f"[{user}](https://twitter.com/{user[1:]})"
+    return text
+
+
 def get_hashtags(text: str) -> Set[str]:
     return set(re.findall(r"(#\w+)", text))
+
+
+def get_users(text: str) -> Set[str]:
+    return set(re.findall(r"(@\w+)", text))
 
 
 def get_links(text: str) -> Set[str]:

@@ -4,9 +4,6 @@ from pydantic import BaseModel
 from tweepy import Response
 
 
-
-
-
 class Attachment(BaseModel):
     attachment_type: str
     url: str
