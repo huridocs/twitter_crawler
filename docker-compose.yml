@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
     command: mongod --port 30017
     image: "mongo:4.0.1"
-    container_name: db
+    container_name: db_twitter
     volumes:
       - /data/db
     profiles: ['production', 'testing']

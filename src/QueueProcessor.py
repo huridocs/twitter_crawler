@@ -4,6 +4,7 @@ from typing import List
 
 import pymongo as pymongo
 import redis
+import requests
 import tweepy
 from pydantic import ValidationError
 from rsmq.consumer import RedisSMQConsumer
@@ -52,7 +53,7 @@ class QueueProcessor:
 
         except ValidationError:
             self.logger.error(f"Not a valid message: {message}")
-        except ConnectionError:
+        except requests.exceptions.ConnectionError:
             self.logger.info(f"ConnectionError: {message}")
         except tweepy.errors.BadRequest:
             self.logger.info(f"Not a valid user: {message}")
