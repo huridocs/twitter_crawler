@@ -7,7 +7,6 @@
 - [Dependencies](#dependencies)
 - [Docker containers](#docker-containers)
 - [How to use it](#how-to-use-it)
-- [HTTP server](#http-server)
 - [Queue processor](#queue-processor)
 - [Service configuration](#service-configuration)
 - [Get service logs](#get-service-logs)
@@ -54,13 +53,14 @@ Containers with `./run start:testing`
 
 3. Add a message to the tasks redis queue with the following format
 
-
+```
     queue = RedisSMQ(host='127.0.0.1', port='6579', qname='twitter_crawler_tasks', quiet=False)
     queue.sendMessage(delay=0).message('{"tenant": "tenant_name", "task": "get_tweet", "params": {"query": "@user_handler or #hashtag", "tweets_languages": ["en"]}}').execute()
+```
 
 4. Get results from the results queue
 
-
+```
     queue = RedisSMQ(host='127.0.0.1', port='6579', qname='twitter_crawler_results', quiet=False)
     results_message = queue.receiveMessage().exceptions(False).execute()
 
@@ -88,7 +88,7 @@ Containers with `./run start:testing`
     # "data_url": "str",
     # "file_url": "str"
     #  }
-    
+```  
 
 
 5. Stop the service
