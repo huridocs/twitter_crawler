@@ -95,7 +95,10 @@ def get_text(text: str, attachments: List[Attachment], expanded_urls: Dict[str, 
 
 def replace_links(links, text):
     for link in links:
-        start_character_matches = sorted([m.start() for m in re.finditer(link, text)], reverse=True)
+        try:
+            start_character_matches = sorted([m.start() for m in re.finditer(link, text)], reverse=True)
+        except re.error:
+            continue
         for start in start_character_matches:
             try:
                 next_character = text[start + len(link)]
