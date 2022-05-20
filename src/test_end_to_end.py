@@ -50,10 +50,7 @@ class TestEndToEnd(TestCase):
 
         queue.sendMessage().message(str(no_user_task.json())).execute()
 
-        service_config = ServiceConfig()
-        client = pymongo.MongoClient(f"mongodb://{service_config.mongo_host}:{service_config.mongo_port}")
-        tweets_db = client["tweets"]
-        tweets_db.tweets.delete_many({"tenant": tenant, "query": "#twitter"})
+        self.delete_mongo_db_collection(tenant)
 
         task = Task(
             tenant=tenant,
@@ -69,6 +66,15 @@ class TestEndToEnd(TestCase):
 
         other_message = self.get_redis_message()
         self.assertTrue(twitter_message.params.tweet_id < other_message.params.tweet_id)
+
+        self.delete_mongo_db_collection(tenant)
+
+    @staticmethod
+    def delete_mongo_db_collection(tenant):
+        service_config = ServiceConfig()
+        client = pymongo.MongoClient(f"mongodb://{service_config.mongo_host}:{service_config.mongo_port}")
+        tweets_db = client["tweets"]
+        tweets_db.tweets.delete_many({"tenant": tenant})
 
     @staticmethod
     def get_redis_message() -> TweetMessage:

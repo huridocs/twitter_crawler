@@ -15,6 +15,8 @@ from data.Task import Task
 from data.TweetData import TweetData
 from data.TweetMessage import TweetMessage
 
+class UserSuspended(Exception):
+    pass
 
 class QueueProcessor:
 
@@ -59,6 +61,8 @@ class QueueProcessor:
             self.logger.info(f"Not a valid user: {message}")
         except tweepy.errors.HTTPException:
             self.logger.info(f"Twitter api not available: {message}")
+        except UserSuspended:
+            self.logger.info(f"User suspended: {message}")
         except Exception:
             self.logger.error("error getting the tweets", exc_info=1)
 
@@ -94,6 +98,9 @@ class QueueProcessor:
         if task.params.query[0] == "@":
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
             user = tweepy_client.get_user(username=task.params.query[1:])
+            if user.errors and 'detail' in user.errors[0] and 'suspended' in user.errors[0]['detail']:
+                raise UserSuspended
+
             tweepy_params["id"] = user.data["id"]
         else:
             tweepy_params["query"] = f"{self.get_sanitized_query(task.params.query)} -is:reply -is:retweet"
