@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from time import sleep
 from typing import List
@@ -9,14 +10,18 @@ import tweepy
 from pydantic import ValidationError
 from rsmq.consumer import RedisSMQConsumer
 from rsmq import RedisSMQ
+from sentry_sdk.integrations.redis import RedisIntegration
+import sentry_sdk
 
 from ServiceConfig import ServiceConfig
 from data.Task import Task
 from data.TweetData import TweetData
 from data.TweetMessage import TweetMessage
 
+
 class UserSuspended(Exception):
     pass
+
 
 class QueueProcessor:
 
@@ -98,7 +103,7 @@ class QueueProcessor:
         if task.params.query[0] == "@":
             tweepy_client = tweepy.Client(self.service_config.twitter_bearer_token)
             user = tweepy_client.get_user(username=task.params.query[1:])
-            if user.errors and 'detail' in user.errors[0] and 'suspended' in user.errors[0]['detail']:
+            if user.errors and "detail" in user.errors[0] and "suspended" in user.errors[0]["detail"]:
                 raise UserSuspended
 
             tweepy_params["id"] = user.data["id"]
@@ -169,5 +174,15 @@ class QueueProcessor:
 
 
 if __name__ == "__main__":
+    try:
+        sentry_sdk.init(
+            os.environ.get("SENTRY_DSN"),
+            traces_sample_rate=0.1,
+            environment=os.environ.get("ENVIRONMENT", "development"),
+            integrations=[RedisIntegration()],
+        )
+    except Exception:
+        pass
+
     redis_tasks_processor = QueueProcessor()
     redis_tasks_processor.subscribe_to_extractions_tasks_queue()

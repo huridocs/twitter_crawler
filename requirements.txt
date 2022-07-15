@@ -10,3 +10,4 @@ pytest
 black
 tweepy~=4.5.0
 pymongo~=4.0.2
+sentry-sdk
