@@ -18,6 +18,9 @@ from data.TweetMessage import TweetMessage
 class UserSuspended(Exception):
     pass
 
+class UserError(Exception):
+    pass
+
 class QueueProcessor:
 
     TIME_BETWEEN_QUERIES_IN_MINUTES = 4
@@ -63,6 +66,8 @@ class QueueProcessor:
             self.logger.info(f"Twitter api not available: {message}")
         except UserSuspended:
             self.logger.info(f"User suspended: {message}")
+        except UserError:
+            self.logger.info(f"User does not exist: {message}")
         except Exception:
             self.logger.error("error getting the tweets", exc_info=1)
 
@@ -100,6 +105,9 @@ class QueueProcessor:
             user = tweepy_client.get_user(username=task.params.query[1:])
             if user.errors and 'detail' in user.errors[0] and 'suspended' in user.errors[0]['detail']:
                 raise UserSuspended
+
+            if not user or not user.data or "id" not in user.data:
+                raise UserError
 
             tweepy_params["id"] = user.data["id"]
         else:
